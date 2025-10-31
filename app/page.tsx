@@ -17,12 +17,12 @@ export default function Home() {
   const [flowerImage, setFlowerImage] = useState<string>('/flower.png');
   const [footerLogo, setFooterLogo] = useState<string>('/footer-logo.png');
   const [contentY, setContentY] = useState<number>(0);
-  const [bgColor, setBgColor] = useState<string>('#B91C1C'); 
+  const [bgColor, setBgColor] = useState<string>('#3a55df'); 
   const [waveColor1, setWaveColor1] = useState<string>('#d6dbdf'); 
   const [waveColor2, setWaveColor2] = useState<string>('#abb2b9'); 
   const [logoSize, setLogoSize] = useState<number>(100); 
   const [logoMarginBottom, setLogoMarginBottom] = useState<number>(16); 
-  const [sideTextX, setSideTextX] = useState<number>(32);
+  const [sideTextX, setSideTextX] = useState<number>(0);
   const [imageQuality, setImageQuality] = useState<string>('Medium');
   const [fontFamily, setFontFamily] = useState<string>('var(--font-hind-siliguri)');
 
