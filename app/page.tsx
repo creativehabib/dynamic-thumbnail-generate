@@ -161,7 +161,7 @@ export default function Home() {
           link.href = dataUrl;
           link.click();
         })
-        .catch((err) => {
+        .catch((err:any) => {
           console.error('oops, something went wrong!', err);
           alert('দুঃখিত, ডাউনলোড করা সম্ভব হয়নি। অনুগ্রহ করে কনসোল চেক করুন।');
         });
@@ -567,7 +567,7 @@ export default function Home() {
                       objectFit: 'contain',
                       backgroundColor: showFooterLogoBg ? footerLogoBgColor : 'transparent',
                       borderRadius: `${footerLogoBorderRadius}px`,
-                      padding: showFooterLogoBg ? '8px' : '0px', // <-- 1px থেকে 8px করা হয়েছে
+                      padding: showFooterLogoBg ? '2px' : '0px', // <-- 1px থেকে 8px করা হয়েছে
                       boxSizing: 'border-box' // প্যাডিং যেন সাইজ পরিবর্তন না করে
                     }}
                     // --- /নতুন স্টাইল ---
