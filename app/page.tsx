@@ -40,6 +40,8 @@ export default function Home() {
   const [logoMarginBottom, setLogoMarginBottom] = useState<number>(16);
   const [sideTextX, setSideTextX] = useState<number>(0);
   const [imageQuality, setImageQuality] = useState<string>('Medium');
+  // --- নতুন স্টেট (ইমেজ ফরম্যাট) ---
+  const [imageFormat, setImageFormat] = useState<string>('png');
   const [fontFamily, setFontFamily] = useState<string>('var(--font-hind-siliguri)');
 
   // --- নতুন স্টেট ---
@@ -51,26 +53,30 @@ export default function Home() {
 
   // === স্ক্রিপ্ট লোডার ===
   useEffect(() => {
-    // html-to-image লাইব্রেরিটি CDN থেকে লোড করার জন্য একটি স্ক্রিপ্ট ট্যাগ তৈরি করুন
-
     // --- পরিবর্তন শুরু ---
-    // CDN ঠিকানা cdnjs থেকে jsdelivr-এ পরিবর্তন করা হয়েছে
+    // 'dom-to-image-more' থেকে 'html-to-image'-এ পরিবর্তন
     const script = document.createElement('script');
+    // CDN 'jsdelivr' থেকে 'html-to-image' লোড করা
     script.src = 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js';
-    // script.integrity সরিয়ে ফেলা হয়েছে কারণ এটি আগের CDN-এর জন্য ছিল
     script.crossOrigin = 'anonymous';
     script.referrerPolicy = 'no-referrer';
     // --- পরিবর্তন শেষ ---
 
     // স্ক্রিপ্ট সফলভাবে লোড হলে
     script.onload = () => {
-      setIsScriptLoaded(true);
+      // --- পরিবর্তন: 'domtoimage' এর পরিবর্তে 'htmlToImage' অবজেক্টটি আছে কিনা তা পরীক্ষা করুন ---
+      if ((window as any).htmlToImage) {
+        console.log('html-to-image script loaded successfully from jsdelivr.');
+        setIsScriptLoaded(true);
+      } else {
+        console.error('Script loaded, but window.htmlToImage is not defined.');
+        console.error('Could not initialize image generation script. Download will not work.');
+      }
     };
 
     // স্ক্রিপ্ট লোড ব্যর্থ হলে
     script.onerror = () => {
       console.error('Failed to load html-to-image script from jsdelivr.');
-      // alert ব্যবহার না করে একটি ইউআই বার্তা দেখানো ভালো, কিন্তু আপাতত এটি রাখছি
       console.error('Could not load image generation script. Download will not work.');
     };
 
@@ -108,6 +114,7 @@ export default function Home() {
       return;
     }
 
+    // --- পরিবর্তন: 'domtoimage' এর পরিবর্তে 'htmlToImage' চেক করুন ---
     if (!isScriptLoaded || !(window as any).htmlToImage) {
       console.error('html-to-image script is not loaded yet.');
       alert('ইমেজ তৈরির স্ক্রিপ্ট এখনও লোড হয়নি। অনুগ্রহ করে কিছুক্ষণ পর আবার চেষ্টা করুন।');
@@ -123,23 +130,42 @@ export default function Home() {
 
     const options = {
       cacheBust: true,
-      quality: 1.0,
+      quality: 1.0, // JPG/WEBP-এর জন্য 1.0 সর্বোচ্চ কোয়ালিটি
       pixelRatio: pixelRatioValue
     };
 
-    // সরাসরি toPng এর পরিবর্তে (window as any).htmlToImage.toPng ব্যবহার করুন
-    (window as any).htmlToImage.toPng(thumbnailRef.current, options)
+    // --- ফরম্যাট নির্বাচনের জন্য নতুন লজিক ---
+    // --- পরিবর্তন: 'domtoimage' এর পরিবর্তে 'htmlToImage' ব্যবহার করুন ---
+    const downloader = (window as any).htmlToImage;
+    let downloadPromise;
+    let fileExtension = imageFormat; // 'png', 'jpeg', 'webp'
+
+    if (imageFormat === 'png') {
+      downloadPromise = downloader.toPng(thumbnailRef.current, options);
+    } else if (imageFormat === 'jpeg') {
+      downloadPromise = downloader.toJpeg(thumbnailRef.current, options);
+      fileExtension = 'jpg'; // .jpg এক্সটেনশন ব্যবহার করুন
+    } else if (imageFormat === 'webp') {
+      downloadPromise = downloader.toWebp(thumbnailRef.current, options);
+    } else {
+      console.error('Unknown image format:', imageFormat);
+      alert('অজানা ইমেজ ফরম্যাট সিলেক্ট করা হয়েছে।');
+      return;
+    }
+    // --- নতুন লজিক শেষ ---
+
+    downloadPromise
         .then((dataUrl: string) => {
           const link = document.createElement('a');
-          link.download = 'dynamic-thumbnail.png';
+          link.download = `dynamic-thumbnail.${fileExtension}`; // <-- আপডেটেড ফাইল এক্সটেনশন
           link.href = dataUrl;
           link.click();
         })
-        .catch((err:never) => {
+        .catch((err) => {
           console.error('oops, something went wrong!', err);
           alert('দুঃখিত, ডাউনলোড করা সম্ভব হয়নি। অনুগ্রহ করে কনসোল চেক করুন।');
         });
-  }, [thumbnailRef, imageQuality, isScriptLoaded]); // isScriptLoaded-কে dependency-তে যোগ করুন
+  }, [thumbnailRef, imageQuality, isScriptLoaded, imageFormat]); // <-- imageFormat-কে dependency-তে যোগ করুন
 
   // ইনপুট স্টাইল
   const inputStyle = "mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900";
@@ -303,6 +329,20 @@ export default function Home() {
                 <option value="Low">Low (Fast, Small Size - 1x)</option>
                 <option value="Medium">Medium (Balanced - 1.5x)</option>
                 <option value="High">High (Crisp, Large Size - 2x)</option>
+              </select>
+            </div>
+
+            {/* --- নতুন: আউটপুট ফরম্যাট সিলেক্ট মেনু --- */}
+            <div>
+              <label className={labelStyle}>আউটপুট ফরম্যাট</label>
+              <select
+                  value={imageFormat}
+                  onChange={(e) => setImageFormat(e.target.value)}
+                  className={inputStyle}
+              >
+                <option value="png">PNG</option>
+                <option value="jpeg">JPG</option>
+                <option value="webp">WEBP</option>
               </select>
             </div>
 
@@ -527,7 +567,7 @@ export default function Home() {
                       objectFit: 'contain',
                       backgroundColor: showFooterLogoBg ? footerLogoBgColor : 'transparent',
                       borderRadius: `${footerLogoBorderRadius}px`,
-                      padding: showFooterLogoBg ? '1px' : '0px',
+                      padding: showFooterLogoBg ? '8px' : '0px', // <-- 1px থেকে 8px করা হয়েছে
                       boxSizing: 'border-box' // প্যাডিং যেন সাইজ পরিবর্তন না করে
                     }}
                     // --- /নতুন স্টাইল ---
