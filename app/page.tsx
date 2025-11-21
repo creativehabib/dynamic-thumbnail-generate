@@ -120,7 +120,7 @@ export default function Home() {
       targetExtension: string
   ): Promise<string> => {
     const MAX_WIDTH = 1200;
-    const MAX_HEIGHT = 650;
+    const MAX_HEIGHT = 680;
     const mimeType =
         targetExtension === 'jpg'
             ? 'image/jpeg'
@@ -527,13 +527,13 @@ export default function Home() {
         {/* ডান দিকে থাম্বনেইল প্রিভিউ (রেসপন্সিভ) */}
         <div className="w-full lg:w-auto">
           {/* এই div টি প্রিভিউর উচ্চতা কন্ট্রোল করে। */}
-          <div className="h-[197px] sm:h-[315px] md:h-[473px] lg:h-[630px] overflow-hidden">
-            {/* এই div টি 1200x630 সাইজেরই থাকে, কিন্তু transform-origin-top-left
+          <div className="h-[213px] sm:h-[340px] md:h-[510px] lg:h-[680px] overflow-hidden">
+            {/* এই div টি 1200x680 সাইজেরই থাকে, কিন্তু transform-origin-top-left
             এবং scale-* ক্লাসগুলো দিয়ে একে ছোট করে দেখানো হয়।
           */}
             <div
                 ref={thumbnailRef}
-                className="relative w-[1200px] h-[630px] overflow-hidden shadow-2xl
+                className="relative w-[1200px] h-[680px] overflow-hidden shadow-2xl
                        transform-origin-top-left scale-[0.3125] sm:scale-50 md:scale-75 lg:scale-100"
                 style={{ backgroundColor: bgColor }}
             >
