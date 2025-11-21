@@ -4,6 +4,14 @@ import { useState, useRef, useCallback, ChangeEvent, useEffect } from 'react';
 // html-to-image ইম্পোর্টটি সরানো হয়েছে, আমরা এটি CDN থেকে লোড করবো
 // import { toPng } from 'html-to-image';
 
+type HtmlToImageMethods = {
+  toPng: (node: HTMLElement, options?: unknown) => Promise<string>;
+  toJpeg: (node: HTMLElement, options?: unknown) => Promise<string>;
+  toWebp: (node: HTMLElement, options?: unknown) => Promise<string>;
+};
+
+type HtmlToImageWindow = typeof window & { htmlToImage?: HtmlToImageMethods };
+
 export default function Home() {
   // === স্টেট ভ্যারিয়েবল ===
   const [logo, setLogo] = useState<string>('/logo.png');
@@ -64,11 +72,12 @@ export default function Home() {
 
     // স্ক্রিপ্ট সফলভাবে লোড হলে
     script.onload = () => {
-      // --- পরিবর্তন: 'domtoimage' এর পরিবর্তে 'htmlToImage' অবজেক্টটি আছে কিনা তা পরীক্ষা করুন ---
-      if ((window as any).htmlToImage) {
-        console.log('html-to-image script loaded successfully from jsdelivr.');
-        setIsScriptLoaded(true);
-      } else {
+    // --- পরিবর্তন: 'domtoimage' এর পরিবর্তে 'htmlToImage' অবজেক্টটি আছে কিনা তা পরীক্ষা করুন ---
+    const htmlToImage = (window as HtmlToImageWindow).htmlToImage;
+    if (htmlToImage) {
+      console.log('html-to-image script loaded successfully from jsdelivr.');
+      setIsScriptLoaded(true);
+    } else {
         console.error('Script loaded, but window.htmlToImage is not defined.');
         console.error('Could not initialize image generation script. Download will not work.');
       }
@@ -106,6 +115,49 @@ export default function Home() {
     }
   };
 
+  const resizeDataUrlIfNeeded = useCallback((
+      dataUrl: string,
+      targetExtension: string
+  ): Promise<string> => {
+    const MAX_WIDTH = 1200;
+    const MAX_HEIGHT = 650;
+    const mimeType =
+        targetExtension === 'jpg'
+            ? 'image/jpeg'
+            : targetExtension === 'png'
+                ? 'image/png'
+                : 'image/webp';
+
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const { width, height } = img;
+
+        if (width <= MAX_WIDTH && height <= MAX_HEIGHT) {
+          resolve(dataUrl);
+          return;
+        }
+
+        const scale = Math.min(MAX_WIDTH / width, MAX_HEIGHT / height);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.floor(width * scale);
+        canvas.height = Math.floor(height * scale);
+        const ctx = canvas.getContext('2d');
+
+        if (!ctx) {
+          reject(new Error('Canvas context unavailable'));
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL(mimeType));
+      };
+
+      img.onerror = () => reject(new Error('Failed to load generated image'));
+      img.src = dataUrl;
+    });
+  }, []);
+
   // === (এই ফাংশনটি ডাউনলোড করে - কোয়ালিটি অপশন সহ) ===
   const onDownload = useCallback(() => {
     // স্ক্রিপ্ট লোড না হলে বা ref না থাকলে ডাউনলোড শুরু করবেন না
@@ -115,7 +167,8 @@ export default function Home() {
     }
 
     // --- পরিবর্তন: 'domtoimage' এর পরিবর্তে 'htmlToImage' চেক করুন ---
-    if (!isScriptLoaded || !(window as any).htmlToImage) {
+    const htmlToImage = (window as HtmlToImageWindow).htmlToImage;
+    if (!isScriptLoaded || !htmlToImage) {
       console.error('html-to-image script is not loaded yet.');
       alert('ইমেজ তৈরির স্ক্রিপ্ট এখনও লোড হয়নি। অনুগ্রহ করে কিছুক্ষণ পর আবার চেষ্টা করুন।');
       return;
@@ -136,8 +189,8 @@ export default function Home() {
 
     // --- ফরম্যাট নির্বাচনের জন্য নতুন লজিক ---
     // --- পরিবর্তন: 'domtoimage' এর পরিবর্তে 'htmlToImage' ব্যবহার করুন ---
-    const downloader = (window as any).htmlToImage;
-    let downloadPromise;
+    const downloader = htmlToImage;
+    let downloadPromise: Promise<string>;
     let fileExtension = imageFormat; // 'png', 'jpeg', 'webp'
 
     if (imageFormat === 'png') {
@@ -156,16 +209,19 @@ export default function Home() {
 
     downloadPromise
         .then((dataUrl: string) => {
-          const link = document.createElement('a');
-          link.download = `dynamic-thumbnail.${fileExtension}`; // <-- আপডেটেড ফাইল এক্সটেনশন
-          link.href = dataUrl;
-          link.click();
+          return resizeDataUrlIfNeeded(dataUrl, fileExtension)
+              .then((processedUrl) => {
+                const link = document.createElement('a');
+                link.download = `dynamic-thumbnail.${fileExtension}`; // <-- আপডেটেড ফাইল এক্সটেনশন
+                link.href = processedUrl;
+                link.click();
+              });
         })
-        .catch((err:any) => {
-          console.error('oops, something went wrong!', err);
-          alert('দুঃখিত, ডাউনলোড করা সম্ভব হয়নি। অনুগ্রহ করে কনসোল চেক করুন।');
-        });
-  }, [thumbnailRef, imageQuality, isScriptLoaded, imageFormat]); // <-- imageFormat-কে dependency-তে যোগ করুন
+          .catch((err: unknown) => {
+            console.error('oops, something went wrong!', err);
+            alert('দুঃখিত, ডাউনলোড করা সম্ভব হয়নি। অনুগ্রহ করে কনসোল চেক করুন।');
+          });
+  }, [thumbnailRef, imageQuality, isScriptLoaded, imageFormat, resizeDataUrlIfNeeded]); // <-- imageFormat-কে dependency-তে যোগ করুন
 
   // ইনপুট স্টাইল
   const inputStyle = "mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900";
